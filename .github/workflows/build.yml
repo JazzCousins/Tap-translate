@@ -45,10 +45,36 @@ jobs:
           chmod +x gradlew
           ./gradlew assembleDebug --no-daemon --stacktrace
 
-      - name: Save the app file so you can download it
+      # Looks inside the finished app file and prints what it finds. Never stops the build.
+      - name: Check the app file is valid
+        continue-on-error: true
+        run: |
+          APK="${{ steps.find.outputs.dir }}/app/build/outputs/apk/debug/app-debug.apk"
+          echo "== file =="
+          ls -l "$APK"
+          sha256sum "$APK"
+          echo "== zip test =="
+          unzip -tq "$APK" || echo "ZIP TEST FAILED"
+          BT="$(ls -d "${ANDROID_HOME:-/usr/local/lib/android/sdk}"/build-tools/* | sort -V | tail -n 1)"
+          echo "== signature check (build-tools: $BT) =="
+          "$BT/apksigner" verify --verbose "$APK" || echo "SIGNATURE CHECK REPORTED A PROBLEM"
+          echo "== app details =="
+          "$BT/aapt2" dump badging "$APK" | head -n 12 || echo "COULD NOT READ APP DETAILS"
+
+      # Copy 1: the plain .apk file, downloaded directly.
+      - name: Save the app file (plain .apk)
         uses: actions/upload-artifact@v7
         with:
           path: ${{ steps.find.outputs.dir }}/app/build/outputs/apk/debug/app-debug.apk
           archive: false
+          if-no-files-found: error
+          retention-days: 30
+
+      # Copy 2: the same file inside a normal .zip (the long-established way). Unzip it on the phone.
+      - name: Save the app file (inside a zip)
+        uses: actions/upload-artifact@v7
+        with:
+          name: TapTranslate-app-zip
+          path: ${{ steps.find.outputs.dir }}/app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
           retention-days: 30
