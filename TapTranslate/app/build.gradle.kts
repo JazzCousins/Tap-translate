@@ -41,14 +41,16 @@ kotlin {
 }
 
 dependencies {
-    // Compose (versions come from the BOM)
-    implementation(platform("androidx.compose:compose-bom:2026.09.00"))
+    // Compose (versions come from the BOM).
+    // Deliberately NOT the newest: Compose 1.12 / lifecycle 2.11 and later need compileSdk 37 and
+    // Android Gradle Plugin 9.2+. These older ones build with compileSdk 36 and AGP 8.13.
+    implementation(platform("androidx.compose:compose-bom:2025.12.00"))
     implementation("androidx.compose.ui:ui")
     implementation("androidx.compose.foundation:foundation")
     implementation("androidx.compose.material3:material3")
 
     implementation("androidx.activity:activity-compose:1.13.0")
-    implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.11.0")
+    implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.10.0")
 
     // On-device OCR (Latin script model, bundled in the app; Turkish is Latin script)
     implementation("com.google.mlkit:text-recognition:16.0.1")
