@@ -1,0 +1,54 @@
+name: Build Android app
+
+# Runs by itself whenever files are added or changed in the repository,
+# and you can also start it by hand from the Actions tab ("Run workflow").
+on:
+  push:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Get the files
+        uses: actions/checkout@v5
+
+      # Works whether the files were uploaded at the top level or inside a TapTranslate folder.
+      - name: Find the project folder
+        id: find
+        run: |
+          settings=$(find . -maxdepth 3 -name settings.gradle.kts -not -path './.git/*' | head -n 1)
+          if [ -z "$settings" ]; then
+            echo "Could not find settings.gradle.kts. Did every file get uploaded?" >&2
+            exit 1
+          fi
+          dir=$(dirname "$settings")
+          echo "Project folder: $dir"
+          echo "dir=$dir" >> "$GITHUB_OUTPUT"
+
+      # The build machine has several Java versions installed. Android needs 17.
+      - name: Use Java 17
+        run: echo "JAVA_HOME=$JAVA_HOME_17_X64" >> "$GITHUB_ENV"
+
+      - name: Accept Android SDK licenses
+        run: |
+          SDKMANAGER="$(command -v sdkmanager || find "${ANDROID_HOME:-/usr/local/lib/android/sdk}" -name sdkmanager -type f 2>/dev/null | head -n 1)"
+          if [ -n "$SDKMANAGER" ]; then
+            yes | "$SDKMANAGER" --licenses > /dev/null || true
+          else
+            echo "sdkmanager not found, continuing anyway"
+          fi
+
+      - name: Build the app
+        working-directory: ${{ steps.find.outputs.dir }}
+        run: |
+          chmod +x gradlew
+          ./gradlew assembleDebug --no-daemon --stacktrace
+
+      - name: Save the app file so you can download it
+        uses: actions/upload-artifact@v7
+        with:
+          path: ${{ steps.find.outputs.dir }}/app/build/outputs/apk/debug/app-debug.apk
+          archive: false
+          if-no-files-found: error
+          retention-days: 30
